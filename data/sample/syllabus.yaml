@@ -1,0 +1,60 @@
+course_id: CIS6930
+title: Building LLM Applications
+term: Fall 2026
+
+office_hours:
+  - staff: Course Instructor
+    role: instructor
+    day: Tuesday
+    start: "14:00"
+    end: "15:30"
+    location: CSE E450
+  - staff: Head TA
+    role: ta
+    day: Wednesday
+    start: "10:00"
+    end: "12:00"
+    location: CSE E309
+  - staff: Grading TA
+    role: ta
+    day: Friday
+    start: "13:00"
+    end: "14:00"
+    location: Zoom (link on the course site)
+
+deadlines:
+  - name: HW1 - Prompting and structured output
+    kind: homework
+    due: 2026-09-12
+  - name: HW2 - Retrieval pipeline
+    kind: homework
+    due: 2026-10-03
+    notes: Includes a short written error analysis.
+  - name: Project proposal
+    kind: project
+    due: 2026-10-10
+  - name: Midterm
+    kind: exam
+    due: 2026-10-22
+    notes: In class, closed book, one page of notes allowed.
+  - name: HW3 - Evaluation harness
+    kind: homework
+    due: 2026-11-07
+  - name: Final project report and demo
+    kind: project
+    due: 2026-12-09
+
+grading:
+  breakdown:
+    homework: 40
+    midterm: 20
+    project: 35
+    participation: 5
+  late_policy: >-
+    Each student has four late days for the term, used in whole-day increments on homework
+    only. After late days are exhausted, work loses 10% per day and is not accepted more than
+    three days late. Late days cannot be applied to the midterm or the final project.
+  collaboration_policy: >-
+    You may discuss homework problems with classmates, but all submitted code and writing must
+    be your own. Using LLM coding assistants is allowed on homework if you disclose it in the
+    README; it is not allowed on the midterm.
