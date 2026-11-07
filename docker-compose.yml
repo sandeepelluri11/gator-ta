@@ -1,0 +1,58 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: gator
+      POSTGRES_PASSWORD: gator
+      POSTGRES_DB: gator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./api/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gator -d gator"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  api:
+    build: ./api
+    environment:
+      GATOR_DATABASE_URL: postgresql+asyncpg://gator:gator@db:5432/gator
+      GATOR_REDIS_URL: redis://redis:6379/0
+      GATOR_SYLLABUS_PATH: /data/sample/syllabus.yaml
+      GATOR_CORS_ORIGINS: '["http://localhost:3000"]'
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ./data:/data:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_BASE: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

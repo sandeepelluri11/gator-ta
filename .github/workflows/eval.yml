@@ -1,0 +1,83 @@
+# Nightly quality gate: ingest the sample material into a fresh pgvector database, answer the
+# graded question set with the real models, judge each answer, and fail if accuracy drops below
+# the threshold. Requires the OPENAI_API_KEY repository secret; the run is skipped without it.
+name: nightly-eval
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: gator
+          POSTGRES_PASSWORD: gator
+          POSTGRES_DB: gator
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gator -d gator"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GATOR_DATABASE_URL: postgresql+asyncpg://gator:gator@localhost:5432/gator
+      GATOR_REDIS_URL: redis://localhost:6379/0
+      PGPASSWORD: gator
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: key
+        name: Check for API key
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::warning::OPENAI_API_KEY secret is not set; skipping evaluation"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.key.outputs.present == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install API
+        if: steps.key.outputs.present == 'true'
+        run: pip install -e "./api[dev]"
+
+      - name: Apply schema
+        if: steps.key.outputs.present == 'true'
+        run: psql -h localhost -U gator -d gator -v ON_ERROR_STOP=1 -f api/migrations/001_init.sql
+
+      - name: Ingest sample material
+        if: steps.key.outputs.present == 'true'
+        run: gator-ingest data/sample/slides
+
+      - name: Run evaluation
+        if: steps.key.outputs.present == 'true'
+        run: gator-eval data/eval/course_qa.jsonl --out eval-results --min-accuracy 0.85
+
+      - name: Publish report
+        if: always() && steps.key.outputs.present == 'true'
+        run: |
+          if [ -f eval-results/latest.md ]; then
+            cat eval-results/latest.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.key.outputs.present == 'true'
+        with:
+          name: eval-results
+          path: eval-results/
+          if-no-files-found: ignore
